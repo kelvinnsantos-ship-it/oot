@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<title>OOT 3.0 — SSC8</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:#0f1117;color:#e2e8f0;font-family:'Inter',sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+  .wrap{text-align:center;padding:40px;}
+  .logo{width:60px;height:60px;background:#FFE600;border-radius:12px;display:flex;align-items:center;justify-content:center;margin:0 auto 20px;}
+  h1{font-size:24px;font-weight:800;margin-bottom:6px;}
+  p{font-size:13px;color:#94a3b8;margin-bottom:32px;}
+  .cards{display:flex;gap:16px;justify-content:center;flex-wrap:wrap;}
+  .card{background:#181c27;border:1px solid #252b3b;border-radius:12px;padding:28px 32px;text-decoration:none;color:#e2e8f0;transition:all .2s;min-width:220px;}
+  .card:hover{border-color:#3b82f6;background:#1a2035;}
+  .card .icon{font-size:32px;margin-bottom:12px;}
+  .card .title{font-size:16px;font-weight:700;margin-bottom:4px;}
+  .card .sub{font-size:12px;color:#94a3b8;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="logo">
+    <svg width="34" height="34" viewBox="0 0 34 34" fill="none">
+      <path d="M5 16L11 10L17 16L23 10L29 16" stroke="#333" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M5 21C5 21 10 28 17 28C24 28 29 21 29 21" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+      <circle cx="12" cy="20" r="2" fill="#333"/>
+      <circle cx="22" cy="20" r="2" fill="#333"/>
+    </svg>
+  </div>
+  <h1>OOT 3.0 — SSC8 Itajaí</h1>
+  <p>Selecione o dashboard que deseja acessar</p>
+  <div class="cards">
+    <a class="card" href="gate_out_dashboard.html">
+      <div class="icon">📋</div>
+      <div class="title">Dashboard Diário</div>
+      <div class="sub">Grid de rotas + Relatório OOT</div>
+    </a>
+    <a class="card" href="oot_semanal.html">
+      <div class="icon">📅</div>
+      <div class="title">Dashboard Semanal</div>
+      <div class="sub">Visão W30, W31... por semana</div>
+    </a>
+  </div>
+</div>
+</body>
+</html>
