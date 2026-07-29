@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Gate Out — Expedição SSC8</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
+  :root {
+    --bg:#0f1117; --surface:#181c27; --border:#252b3b;
+    --accent:#3b82f6; --green:#22c55e; --yellow:#facc15;
+    --red:#ef4444; --muted:#6b7280; --text:#e2e8f0; --subtext:#94a3b8;
+    --mono:'IBM Plex Mono',monospace; --sans:'Inter',sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;min-height:100vh;}
+
+  /* HEADER */
+  header{display:flex;align-items:center;justify-content:space-between;padding:12px 24px;border-bottom:1px solid var(--border);background:var(--surface);}
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand span{font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:.04em;}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
+  .dot.gray{background:var(--muted);box-shadow:none;animation:none;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+  .ts{font-family:var(--mono);font-size:11px;color:var(--muted);}
+
+  /* TABS */
+  .tabs{display:flex;gap:0;border-bottom:1px solid var(--border);background:var(--surface);padding:0 24px;}
+  .tab{padding:10px 20px;font-size:12px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;}
+  .tab:hover{color:var(--text);}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+  /* UPLOAD */
+  .upload-zone{margin:24px;border:2px dashed var(--border);border-radius:10px;padding:40px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);}
+  .upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:#1a2035;}
+  .upload-zone .icon{font-size:36px;margin-bottom:12px;}
+  .upload-zone h3{font-size:15px;font-weight:600;margin-bottom:6px;}
+  .upload-zone p{font-size:12px;color:var(--subtext);}
+  .upload-zone .hint{margin-top:10px;font-size:11px;color:var(--muted);font-family:var(--mono);}
+  #fileInput{display:none;}
+  .file-badge{display:inline-flex;align-items:center;gap:6px;background:#14532d33;border:1px solid #22c55e44;color:var(--green);border-radius:20px;padding:4px 12px;font-size:11px;font-family:var(--mono);margin:0 24px;}
+  .file-badge button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;}
+  .file-badge button:hover{color:var(--red);}
+
+  /* KPIs STRIP */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:1px;border-bottom:1px solid var(--border);}
+  .kpi{background:var(--surface);padding:12px 18px;}
+  .kpi .label{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:5px;}
+  .kpi .value{font-family:var(--mono);font-size:24px;font-weight:600;line-height:1;}
+  .kpi .sub{font-size:11px;color:var(--subtext);margin-top:3px;}
+  .kpi.ok .value{color:var(--green);}
+  .kpi.warn .value{color:var(--yellow);}
+  .kpi.bad .value{color:var(--red);}
+  .kpi.neu .value{color:var(--accent);}
+
+  /* TOOLBAR */
+  .toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 24px;border-bottom:1px solid var(--border);background:var(--surface);}
+  .toolbar label{font-size:11px;color:var(--muted);margin-right:2px;}
+  select,input[type=text]{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 9px;border-radius:4px;font-size:12px;font-family:var(--sans);outline:none;}
+  select:focus,input:focus{border-color:var(--accent);}
+  .pill{padding:4px 10px;border-radius:20px;font-size:11px;font-weight:500;border:1px solid var(--border);cursor:pointer;transition:all .15s;background:var(--bg);color:var(--subtext);}
+  .pill.active,.pill:hover{background:var(--accent);color:#fff;border-color:var(--accent);}
+  .spacer{flex:1;}
+  #searchInput{width:200px;}
+
+  /* TABLE */
+  .table-wrap{overflow-x:auto;padding:0 24px 24px;}
+  table{width:100%;border-collapse:collapse;margin-top:16px;}
+  thead th{font-size:10px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
+  thead th:hover{color:var(--text);}
+  tbody tr{border-bottom:1px solid #1a1f2e;transition:background .1s;}
+  tbody tr:hover{background:#1a1f2e;}
+  tbody td{padding:9px 10px;white-space:nowrap;font-size:12px;}
+  .badge{display:inline-block;padding:2px 8px;border-radius:3px;font-family:var(--mono);font-size:10px;font-weight:600;letter-spacing:.04em;}
+  .badge.aderente{background:#14532d44;color:var(--green);border:1px solid #16a34a55;}
+  .badge.delay{background:#7f1d1d44;color:var(--red);border:1px solid #ef444455;}
+  .badge.sem-bip{background:#1e293b;color:var(--muted);border:1px solid var(--border);}
+  .badge.am{background:#1e3a5f44;color:#60a5fa;border:1px solid #3b82f655;}
+  .badge.pm{background:#3b1f5f44;color:#c084fc;border:1px solid #a855f755;}
+  .loyalty{font-size:10px;font-weight:700;letter-spacing:.05em;}
+  .GOLD{color:#fbbf24;}.SILVER{color:#94a3b8;}.PLATINUM{color:#67e8f9;}.BRONCE{color:#cd7f32;}
+  .mono{font-family:var(--mono);font-size:11px;}
+  .dash{color:var(--border);}
+  tfoot td{padding:8px 10px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);}
+
+  /* ── RELATÓRIO TAB ── */
+  .rel-wrap{padding:20px 24px 32px;}
+
+  /* header card ML style */
+  .rel-header{background:linear-gradient(135deg,#0d1b2a 0%,#1a2744 100%);border:1px solid #2a3a5c;border-radius:12px;padding:20px 28px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-bottom:20px;}
+  .rel-header .oot-title{font-size:28px;font-weight:800;color:#fff;letter-spacing:-.02em;}
+  .rel-header .oot-title span{color:var(--yellow);}
+  .rel-header .meta-box{display:flex;gap:24px;align-items:center;}
+  .rel-header .meta-item{text-align:center;}
+  .rel-header .meta-item .ml{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--subtext);margin-bottom:3px;}
+  .rel-header .meta-item .mv{font-size:22px;font-weight:800;font-family:var(--mono);}
+  .rel-header .meta-item .mv.target{color:var(--accent);}
+  .rel-header .meta-item .mv.result-ok{color:var(--green);}
+  .rel-header .meta-item .mv.result-bad{color:var(--red);}
+  .rel-header .facility-tag{background:#facc1522;border:1px solid var(--yellow);color:var(--yellow);border-radius:6px;padding:6px 14px;font-size:13px;font-weight:700;}
+
+  /* 3-col grid */
+  .rel-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px;}
+  @media(max-width:900px){.rel-grid{grid-template-columns:1fr 1fr;}}
+  @media(max-width:580px){.rel-grid{grid-template-columns:1fr;}}
+
+  .rel-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:18px 20px;}
+  .rel-card .card-title{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:14px;font-weight:600;}
+
+  /* resultado geral */
+  .res-pct{font-size:52px;font-weight:800;font-family:var(--mono);line-height:1;}
+  .res-pct.ok{color:var(--green);} .res-pct.bad{color:var(--red);}
+  .res-target{font-size:13px;color:var(--subtext);margin-top:4px;}
+  .res-gap{display:inline-block;background:#7f1d1d55;color:var(--red);border:1px solid var(--red);border-radius:4px;padding:3px 10px;font-weight:700;font-size:13px;margin-top:8px;}
+  .res-gap.ok{background:#14532d55;color:var(--green);border-color:var(--green);}
+  .res-counts{display:flex;gap:20px;margin-top:12px;}
+  .res-counts .rc{font-size:12px;color:var(--subtext);}
+  .res-counts .rc strong{color:var(--text);font-size:18px;font-family:var(--mono);display:block;}
+
+  /* ciclos */
+  .ciclo-row{display:flex;gap:12px;}
+  .ciclo-item{flex:1;text-align:center;background:#0f1117;border-radius:8px;padding:12px 8px;}
+  .ciclo-item .ci-name{font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600;letter-spacing:.06em;}
+  .ciclo-item .ci-pct{font-size:30px;font-weight:800;font-family:var(--mono);}
+  .ciclo-item .ci-pct.ok{color:var(--green);} .ci-pct.warn{color:var(--yellow);} .ci-pct.bad{color:var(--red);}
+  .ciclo-item .ci-bar{height:6px;border-radius:3px;background:#1e293b;margin:8px 0 4px;}
+  .ciclo-item .ci-bar-fill{height:100%;border-radius:3px;transition:width .5s;}
+  .ciclo-item .ci-sub{font-size:10px;color:var(--muted);}
+
+  /* bar charts */
+  .bar-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .bar-row .br-label{font-size:11px;color:var(--subtext);width:170px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .bar-row .br-track{flex:1;height:8px;background:#1e293b;border-radius:4px;overflow:hidden;}
+  .bar-row .br-fill{height:100%;border-radius:4px;transition:width .5s;}
+  .bar-row .br-pct{font-size:11px;font-family:var(--mono);width:38px;text-align:right;flex-shrink:0;}
+  .bar-row .br-info{font-size:11px;font-family:var(--mono);width:80px;text-align:right;flex-shrink:0;white-space:nowrap;}
+
+  /* pontos atenção */
+  .atencao-item{display:flex;gap:12px;margin-bottom:12px;align-items:flex-start;}
+  .atencao-item .ai-icon{font-size:20px;flex-shrink:0;margin-top:1px;}
+  .atencao-item .ai-text{font-size:12px;color:var(--subtext);line-height:1.5;}
+
+  /* bottom row */
+  .rel-grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:700px){.rel-grid-2{grid-template-columns:1fr;}}
+
+  /* modal */
+  #sqlBtn{background:#1e293b;border:1px solid var(--border);color:var(--subtext);padding:5px 12px;border-radius:4px;font-size:12px;cursor:pointer;}
+  #sqlBtn:hover{border-color:var(--accent);color:var(--text);}
+  .modal-overlay{display:none;position:fixed;inset:0;background:#000a;z-index:100;align-items:center;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:8px;width:min(780px,95vw);max-height:85vh;overflow:auto;padding:24px;}
+  .modal h2{font-size:14px;font-weight:600;margin-bottom:16px;}
+  pre{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:16px;overflow-x:auto;font-family:var(--mono);font-size:12px;line-height:1.6;color:#93c5fd;white-space:pre;}
+  .modal-close{float:right;background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;margin-top:-4px;}
+  .modal-close:hover{color:var(--text);}
+  #mapModal .modal{width:min(500px,95vw);}
+  #mapModal select{width:100%;margin-bottom:10px;}
+  #mapModal .row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+  #mapModal .row label{width:160px;font-size:12px;color:var(--subtext);flex-shrink:0;}
+  .btn-primary{background:var(--accent);color:#fff;border:none;border-radius:4px;padding:8px 18px;font-size:13px;cursor:pointer;margin-top:8px;}
+  .btn-primary:hover{background:#2563eb;}
+
+  /* canvas */
+  canvas{max-height:220px;}
+  .edit-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;transition:all .15s;}
+  .edit-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .edit-btn.active{border-color:var(--yellow);color:var(--yellow);}
+  .edit-row{display:flex;align-items:center;gap:8px;margin-bottom:8px;}
+  .edit-row label{font-size:11px;color:var(--subtext);width:110px;flex-shrink:0;}
+  .edit-row input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:13px;font-family:var(--mono);outline:none;}
+  .edit-row input:focus{border-color:var(--accent);}
+  .ciclo-edit-row{display:grid;grid-template-columns:80px 1fr 1fr 1fr 24px;gap:6px;align-items:center;margin-bottom:6px;}
+  .ciclo-edit-row input{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:4px 6px;border-radius:4px;font-size:12px;font-family:var(--mono);outline:none;width:100%;}
+  .ciclo-edit-row input:focus{border-color:var(--accent);}
+  .ciclo-edit-row .col-label{font-size:10px;color:var(--muted);text-align:center;}
+  .del-ciclo{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;}
+  .del-ciclo:hover{color:var(--red);}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="brand">
+    <div class="dot gray" id="statusDot"></div>
+    <span id="headerTitle">GATE OUT · Expedição SSC8</span>
+  </div>
+  <div class="ts" id="clock">—</div>
+</header>
+
+<!-- TABS -->
+<div class="tabs">
+  <div class="tab active" onclick="showTab('grid')" id="tab-grid">📋 Grid de Rotas</div>
+  <div class="tab" onclick="showTab('relatorio')" id="tab-relatorio">📊 Relatório OOT</div>
+</div>
+
+<!-- ══════════════ TAB: GRID ══════════════ -->
+<div id="pane-grid">
+  <div id="uploadSection">
+    <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+      <div class="icon">📂</div>
+      <h3>Carregar CSV do dia</h3>
+      <p>Exporte o arquivo da grid OOT 3.0 e arraste aqui ou clique para selecionar</p>
+      <div class="hint">Aceita .csv exportado diretamente do grid.adminml.com</div>
+    </div>
+    <input type="file" id="fileInput" accept=".csv,.tsv,.txt"/>
+  </div>
+
+  <div id="fileBadgeWrap" style="display:none;padding:10px 0 4px;">
+    <span class="file-badge">
+      <span>📄</span>
+      <span id="fileName">—</span>
+      <button onclick="clearData()" title="Remover">✕</button>
+    </span>
+  </div>
+
+  <div class="kpis" id="kpis" style="display:none"></div>
+
+  <div class="toolbar" id="toolbar" style="display:none">
+    <label>Turno</label>
+    <button class="pill active" onclick="setFilter('cycle','')">Todos</button>
+    <button class="pill" onclick="setFilter('cycle','AM')">AM</button>
+    <button class="pill" onclick="setFilter('cycle','PM')">PM</button>
+    <label style="margin-left:8px">Status</label>
+    <button class="pill active" onclick="setFilter('status','')">Todos</button>
+    <button class="pill" onclick="setFilter('status','Aderente')">Aderente</button>
+    <button class="pill" onclick="setFilter('status','Delay')">Delay</button>
+    <button class="pill" onclick="setFilter('status','Sem Bip')">Sem Bip</button>
+    <div class="spacer"></div>
+    <input type="text" id="searchInput" placeholder="Buscar rota / transportadora…" oninput="render()"/>
+    <button id="sqlBtn" onclick="document.getElementById('sqlModal').classList.add('open')">Ver Query SQL</button>
+  </div>
+
+  <div class="table-wrap" id="tableWrap" style="display:none">
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortBy('rota_id')">Rota ID ↕</th>
+          <th onclick="sortBy('cycle')">Turno ↕</th>
+          <th onclick="sortBy('wave')">Wave ↕</th>
+          <th onclick="sortBy('loyalty')">Loyalty ↕</th>
+          <th onclick="sortBy('transportadora')">Transportadora ↕</th>
+          <th onclick="sortBy('modal')">Modal ↕</th>
+          <th onclick="sortBy('status')">Status ↕</th>
+          <th onclick="sortBy('atraso_min')">Atraso (min) ↕</th>
+          <th>Dados</th>
+          <th>Início Plan.</th>
+          <th>Fim Plan.</th>
+          <th onclick="sortBy('gate_out')">Gate Out ↕</th>
+          <th>Causa Processo</th>
+          <th>Causa Tempo</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+      <tfoot><tr><td colspan="14" id="footcount"></td></tr></tfoot>
+    </table>
+  </div>
+</div>
+
+<!-- ══════════════ TAB: RELATÓRIO ══════════════ -->
+<div id="pane-relatorio" style="display:none">
+  <div class="rel-wrap">
+
+    <!-- Header estilo ML -->
+    <div class="rel-header">
+      <div style="display:flex;align-items:center;gap:16px">
+        <!-- Mercado Livre logo SVG -->
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="48" height="48" rx="10" fill="#FFE600"/>
+          <path d="M24 10C16.268 10 10 16.268 10 24C10 31.732 16.268 38 24 38C31.732 38 38 31.732 38 24C38 16.268 31.732 10 24 10Z" fill="#FFE600"/>
+          <path d="M14 22L19 17L24 22L29 17L34 22" stroke="#333" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M14 26C14 26 17 32 24 32C31 32 34 26 34 26" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+          <circle cx="19" cy="24" r="1.5" fill="#333"/>
+          <circle cx="29" cy="24" r="1.5" fill="#333"/>
+        </svg>
+        <div>
+          <div style="font-size:11px;color:var(--subtext);margin-bottom:4px;letter-spacing:.1em;text-transform:uppercase">Mercado Livre</div>
+          <div class="oot-title">OOT 3.0 · <span id="rel-date">—</span></div>
+        </div>
+      </div>
+      <div class="meta-box">
+        <div class="meta-item">
+          <div class="ml">Target</div>
+          <div class="mv target">85%</div>
+        </div>
+        <div style="width:1px;height:40px;background:var(--border)"></div>
+        <div class="meta-item">
+          <div class="ml">Resultado</div>
+          <div class="mv" id="rel-resultado-pct">—</div>
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div class="facility-tag" id="rel-facility">SSC8</div>
+        <div style="font-size:10px;color:var(--muted);letter-spacing:.08em">Itajaí · SC</div>
+      </div>
+    </div>
+
+    <!-- Row 1: 3 cards -->
+    <div class="rel-grid">
+
+      <!-- Resultado Geral -->
+      <div class="rel-card">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          Resultado Geral
+          <button class="edit-btn" onclick="toggleEditGeral()" id="btn-edit-geral">✏️ Editar</button>
+        </div>
+        <div id="rg-view">
+          <div class="res-pct" id="rg-pct">—</div>
+          <div class="res-target">Target: <strong style="color:var(--accent)">85%</strong></div>
+          <div class="res-gap" id="rg-gap">—</div>
+          <div class="res-counts">
+            <div class="rc"><strong id="rg-total">—</strong>Total rotas</div>
+            <div class="rc"><strong id="rg-nad" style="color:var(--red)">—</strong>Não aderentes</div>
+          </div>
+        </div>
+        <div id="rg-edit" style="display:none">
+          <div class="edit-row"><label>% OOT</label><input type="number" id="ei-pct" min="0" max="100" step="0.1" placeholder="69.2"/></div>
+          <div class="edit-row"><label>Total rotas</label><input type="number" id="ei-total" min="0" placeholder="240"/></div>
+          <div class="edit-row"><label>Não aderentes</label><input type="number" id="ei-nad" min="0" placeholder="52"/></div>
+          <button class="btn-primary" style="width:100%;margin-top:4px" onclick="applyEditGeral()">Aplicar</button>
+        </div>
+      </div>
+
+      <!-- Resultado por Ciclo -->
+      <div class="rel-card">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          Resultado por Ciclo
+          <button class="edit-btn" onclick="toggleEditCiclo()" id="btn-edit-ciclo">✏️ Editar</button>
+        </div>
+        <div id="ciclo-view">
+          <div class="ciclo-row" id="ciclo-row"></div>
+        </div>
+        <div id="ciclo-edit" style="display:none">
+          <div id="ciclo-edit-rows"></div>
+          <button class="edit-btn" style="margin-top:8px;font-size:11px;border-style:dashed;" onclick="addCicloEditRow()">+ Adicionar ciclo</button>
+          <button class="btn-primary" style="width:100%;margin-top:8px" onclick="applyEditCiclo()">Aplicar</button>
+        </div>
+      </div>
+
+      <!-- MLP Ofensoras (pie) -->
+      <div class="rel-card">
+        <div class="card-title">MLP Ofensoras</div>
+        <canvas id="pieChart"></canvas>
+      </div>
+
+    </div>
+
+    <!-- Row 2: causa tempo + causa processo + pontos atenção -->
+    <div class="rel-grid">
+
+      <!-- Causa Tempo -->
+      <div class="rel-card">
+        <div class="card-title">Causa Tempo <span style="font-weight:400;color:var(--muted)">— % acumulada</span></div>
+        <div id="causa-tempo-bars"></div>
+      </div>
+
+      <!-- Causa Processo -->
+      <div class="rel-card">
+        <div class="card-title">Causa Processo <span style="font-weight:400;color:var(--muted)">— % acumulada</span></div>
+        <div id="causa-proc-bars"></div>
+      </div>
+
+      <!-- Pontos de Atenção -->
+      <div class="rel-card" style="background:#1a1a0a;border-color:#facc1533;">
+        <div class="card-title" style="color:var(--yellow)">⚠ Principais Pontos de Atenção</div>
+        <div id="atencao-items"></div>
+      </div>
+
+    </div>
+
+    <!-- Rodapé -->
+    <div style="text-align:center;margin-top:20px;padding:14px;background:#14532d22;border:1px solid #22c55e33;border-radius:8px;font-size:13px;font-weight:700;color:var(--green);letter-spacing:.05em;">
+      🎯 FOCO, DISCIPLINA E PONTUALIDADE PARA ALCANÇARMOS A META DE 85%!
+    </div>
+
+  </div>
+</div>
+
+<!-- SQL Modal -->
+<div class="modal-overlay" id="sqlModal">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('sqlModal').classList.remove('open')">✕</button>
+    <h2>Query SQL — Gate Out no dia atual</h2>
+    <pre>SELECT r.rota_id, CAST(r.data_operacao AS DATE) AS data,
+    r.facility, r.cycle, r.wave, r.loyalty,
+    t.nome_transportadora AS transportadora, r.modal,
+    CASE WHEN g.yms_gate_out IS NULL THEN 'Sem Bip'
+         WHEN g.yms_gate_out > r.oc_planned_end_time THEN 'Delay'
+         ELSE 'Aderente' END AS status,
+    DATEDIFF(MINUTE, r.oc_planned_end_time, g.yms_gate_out) AS atraso_min,
+    r.oc_planned_end_time AS fim_planejado,
+    g.yms_gate_out AS gate_out, g.causa_processo, g.causa_tempo
+FROM rotas r
+LEFT JOIN transportadoras t ON t.id = r.transportadora_id
+LEFT JOIN yms_gate_out g ON g.rota_id = r.rota_id
+WHERE CAST(r.data_operacao AS DATE) = CAST(GETDATE() AS DATE)
+  AND r.facility = 'SSC8'
+ORDER BY r.cycle, g.yms_gate_out NULLS LAST;
+-- Oracle: GETDATE()→TRUNC(SYSDATE) | DATEDIFF→(ts2-ts1)*1440</pre>
+  </div>
+</div>
+
+<!-- Column Mapping Modal -->
+<div class="modal-overlay" id="mapModal">
+  <div class="modal">
+    <button class="modal-close" onclick="document.getElementById('mapModal').classList.remove('open')">✕</button>
+    <h2>Mapeamento de colunas do CSV</h2>
+    <p style="font-size:12px;color:var(--subtext);margin-bottom:16px">Associe as colunas do seu arquivo às colunas do dashboard:</p>
+    <div id="mapRows"></div>
+    <button class="btn-primary" onclick="applyMapping()">Aplicar e carregar</button>
+  </div>
+</div>
+
+<script>
+// ── TABS ──────────────────────────────────────────────────────────────────────
+function showTab(t) {
+  ['grid','relatorio'].forEach(id => {
+    document.getElementById('pane-'+id).style.display = id===t ? 'block' : 'none';
+    document.getElementById('tab-'+id).classList.toggle('active', id===t);
+  });
+  if (t==='relatorio' && rawData.length) renderRelatorio(false);
+}
+
+// ── COLUMN ALIASES ────────────────────────────────────────────────────────────
+const FIELD_ALIASES = {
+  rota_id:['rota_id','rota','route_id','id_rota','routeid'],
+  data:['data','date','data_operacao','dt_operacao'],
+  facility:['facility','cd','centro_distribuicao'],
+  cycle:['cycle','turno','ciclo'],
+  wave:['wave','onda'],
+  loyalty:['loyalty','fidelidade','tier'],
+  transportadora:['transportadora','carrier','transportador','nome_transportadora'],
+  modal:['modal','tipo_veiculo','vehicle_type'],
+  status:['status','situacao'],
+  atraso_min:['atraso_min','atraso','delay_min','delay','minutos_atraso'],
+  dados:['dados','data_info','info'],
+  inicio_planejado:['inicio_planejado','inicio_plan','planned_start','oc_planned_start'],
+  fim_planejado:['fim_planejado','fim_plan','planned_end','oc_planned_end_time'],
+  gate_out:['gate_out','yms_gate_out','saida','gate_out_time'],
+  causa_processo:['causa_processo','process_cause','causa_proc'],
+  causa_tempo:['causa_tempo','time_cause','causa_t'],
+};
+
+let rawData=[], csvHeaders=[], pendingRows=[], colMap={};
+let filters={cycle:'',status:''}, sortCol='rota_id', sortDir=1;
+let pieChartInst=null;
+
+// ── FILE ──────────────────────────────────────────────────────────────────────
+const dropZone=document.getElementById('dropZone');
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag');handleFile(e.dataTransfer.files[0]);});
+document.getElementById('fileInput').addEventListener('change',e=>handleFile(e.target.files[0]));
+
+function handleFile(file){
+  if(!file) return;
+  document.getElementById('fileName').textContent=file.name;
+  const r=new FileReader();
+  r.onload=e=>parseCSV(e.target.result,file.name);
+  r.readAsText(file,'UTF-8');
+}
+
+function parseCSV(text,filename){
+  // Strip BOM if present
+  text = text.replace(/^\uFEFF/, '');
+  const first=text.split('\n')[0];
+  const delim=first.includes('\t')?'\t':first.includes(';')?';':',';
+  const lines=text.trim().split('\n').filter(l=>l.trim());
+  csvHeaders=lines[0].split(delim).map(h=>h.trim().replace(/^"|"$/g,'').replace(/^\uFEFF/,'').toLowerCase());
+  colMap={};
+  for(const [field,aliases] of Object.entries(FIELD_ALIASES)){
+    const m=csvHeaders.find(h=>aliases.includes(h));
+    if(m) colMap[field]=m;
+  }
+  pendingRows=lines.slice(1).map(line=>{
+    const vals=line.split(delim).map(v=>v.trim().replace(/^"|"$/g,''));
+    const obj={};
+    csvHeaders.forEach((h,i)=>obj[h]=vals[i]||'');
+    return obj;
+  });
+  const missing=['rota_id','transportadora','status'].filter(f=>!colMap[f]);
+  if(missing.length>0) showMappingModal();
+  else loadData(filename);
+}
+
+function showMappingModal(){
+  document.getElementById('mapRows').innerHTML=Object.entries(FIELD_ALIASES).map(([field])=>`
+    <div class="row"><label>${field}</label>
+    <select id="map_${field}">
+      <option value="">— ignorar —</option>
+      ${csvHeaders.map(h=>`<option value="${h}" ${colMap[field]===h?'selected':''}>${h}</option>`).join('')}
+    </select></div>`).join('');
+  document.getElementById('mapModal').classList.add('open');
+}
+
+function applyMapping(){
+  for(const field of Object.keys(FIELD_ALIASES)){
+    const sel=document.getElementById('map_'+field);
+    if(sel&&sel.value) colMap[field]=sel.value;
+  }
+  document.getElementById('mapModal').classList.remove('open');
+  loadData(document.getElementById('fileName').textContent);
+}
+
+function loadData(filename){
+  const get=(row,field)=>colMap[field]?(row[colMap[field]]??''):'';
+  rawData=pendingRows.map(row=>({
+    rota_id:get(row,'rota_id')||'—',
+    data:get(row,'data')||'—',
+    facility:get(row,'facility')||'—',
+    cycle:get(row,'cycle')||'—',
+    wave:get(row,'wave')||'',
+    loyalty:get(row,'loyalty')||'',
+    transportadora:get(row,'transportadora')||'—',
+    modal:get(row,'modal')||'',
+    status:(()=>{const s=get(row,'status')||'Sem Bip'; return s==='On Time'?'Aderente':s;})(),
+    atraso_min:parseFloat(get(row,'atraso_min'))||null,
+    dados:get(row,'dados')||'—',
+    inicio_planejado:get(row,'inicio_planejado')||'—',
+    fim_planejado:get(row,'fim_planejado')||'—',
+    gate_out:get(row,'gate_out')||'—',
+    causa_processo:get(row,'causa_processo')||'—',
+    causa_tempo:get(row,'causa_tempo')||'—',
+  }));
+  const dates=[...new Set(rawData.map(r=>r.data).filter(d=>d!=='—'))];
+  const dateStr=dates.length===1?` · ${dates[0]}`:dates.length>1?` · ${dates.length} datas`:'';
+  document.getElementById('headerTitle').textContent=`GATE OUT · Expedição${dateStr}`;
+  document.getElementById('rel-date').textContent=dates[0]||'—';
+  const facs=[...new Set(rawData.map(r=>r.facility).filter(f=>f!=='—'))];
+  if(facs.length) document.getElementById('rel-facility').textContent=facs.join(', ');
+  document.getElementById('statusDot').classList.remove('gray');
+  document.getElementById('uploadSection').style.display='none';
+  document.getElementById('fileBadgeWrap').style.display='block';
+  document.getElementById('kpis').style.display='grid';
+  document.getElementById('toolbar').style.display='flex';
+  document.getElementById('tableWrap').style.display='block';
+  render();
+}
+
+function clearData(){
+  rawData=[];
+  document.getElementById('uploadSection').style.display='block';
+  document.getElementById('fileBadgeWrap').style.display='none';
+  document.getElementById('kpis').style.display='none';
+  document.getElementById('toolbar').style.display='none';
+  document.getElementById('tableWrap').style.display='none';
+  document.getElementById('statusDot').classList.add('gray');
+  document.getElementById('headerTitle').textContent='GATE OUT · Expedição SSC8';
+  document.getElementById('fileInput').value='';
+}
+
+// ── FILTERS ───────────────────────────────────────────────────────────────────
+function setFilter(key,val){
+  filters[key]=val;
+  document.querySelectorAll('.pill').forEach(p=>{
+    p.classList.toggle('active',(p.getAttribute('onclick')||'').includes(`'${key}','${val}'`));
+  });
+  render();
+}
+function sortBy(col){
+  if(sortCol===col) sortDir*=-1; else{sortCol=col;sortDir=1;}
+  render();
+}
+
+// ── RENDER GRID ───────────────────────────────────────────────────────────────
+function render(){
+  const q=(document.getElementById('searchInput').value||'').toLowerCase();
+  let rows=rawData.filter(r=>{
+    if(filters.cycle&&r.cycle!==filters.cycle) return false;
+    if(filters.status&&r.status!==filters.status) return false;
+    if(q&&!r.rota_id.toLowerCase().includes(q)&&!r.transportadora.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  rows.sort((a,b)=>{
+    let av=a[sortCol]??'',bv=b[sortCol]??'';
+    if(typeof av==='number') return(av-bv)*sortDir;
+    return String(av).localeCompare(String(bv))*sortDir;
+  });
+  const total=rows.length, aderente=rows.filter(r=>r.status==='Aderente').length,
+        delayed=rows.filter(r=>r.status==='Delay').length,
+        semBip=rows.filter(r=>r.status==='Sem Bip').length,
+        maxAtr=Math.max(0,...rows.filter(r=>r.atraso_min!=null).map(r=>r.atraso_min)),
+        atrDriver=rows.filter(r=>(r.causa_tempo||'').toLowerCase().includes('driver')).length,
+        atrSorting=rows.filter(r=>(r.causa_tempo||'').toLowerCase().includes('sorting')).length;
+
+  document.getElementById('kpis').innerHTML=`
+    <div class="kpi neu"><div class="label">Total Rotas</div><div class="value">${total}</div><div class="sub">no dia</div></div>
+    <div class="kpi ok"><div class="label">Aderente</div><div class="value">${aderente}</div><div class="sub">${total?((aderente/total)*100).toFixed(0):0}%</div></div>
+    <div class="kpi bad"><div class="label">Delay</div><div class="value">${delayed}</div><div class="sub">${total?((delayed/total)*100).toFixed(0):0}%</div></div>
+    <div class="kpi warn"><div class="label">Sem Bip</div><div class="value">${semBip}</div><div class="sub">${total?((semBip/total)*100).toFixed(0):0}%</div></div>
+    <div class="kpi bad"><div class="label">Maior Atraso</div><div class="value">${maxAtr}</div><div class="sub">minutos</div></div>
+    <div class="kpi warn"><div class="label">Atraso Driver</div><div class="value">${atrDriver}</div><div class="sub">${delayed?((atrDriver/delayed)*100).toFixed(0):0}% dos delays</div></div>
+    <div class="kpi bad"><div class="label">Atraso Sorting</div><div class="value">${atrSorting}</div><div class="sub">${delayed?((atrSorting/delayed)*100).toFixed(0):0}% dos delays</div></div>`;
+
+  document.getElementById('tbody').innerHTML=rows.map(r=>{
+    const sb=r.status==='Aderente'?`<span class="badge aderente">ADERENTE</span>`:r.status==='Delay'?`<span class="badge delay">DELAY</span>`:`<span class="badge sem-bip">SEM BIP</span>`;
+    const cb=r.cycle==='AM'?`<span class="badge am">AM</span>`:r.cycle==='PM'?`<span class="badge pm">PM</span>`:`<span style="color:var(--muted)">${r.cycle}</span>`;
+    const lh=r.loyalty?`<span class="loyalty ${r.loyalty}">${r.loyalty}</span>`:`<span class="dash">—</span>`;
+    const at=r.atraso_min!=null?`<span class="mono" style="color:${r.atraso_min>0?'var(--red)':'var(--green)'}">${r.atraso_min>0?'+'+r.atraso_min:r.atraso_min}</span>`:`<span class="dash">—</span>`;
+    return`<tr><td class="mono">${r.rota_id}</td><td>${cb}</td><td class="mono">${r.wave||'<span class="dash">—</span>'}</td><td>${lh}</td><td>${r.transportadora}</td><td style="font-size:11px;color:var(--subtext)">${r.modal||'—'}</td><td>${sb}</td><td>${at}</td><td style="font-size:11px;color:var(--subtext);max-width:160px;overflow:hidden;text-overflow:ellipsis">${r.dados}</td><td class="mono">${r.inicio_planejado}</td><td class="mono">${r.fim_planejado}</td><td class="mono" style="color:${r.gate_out!=='—'?'var(--accent)':'var(--muted)'}">${r.gate_out}</td><td style="font-size:11px;color:var(--subtext)">${r.causa_processo}</td><td style="font-size:11px;color:var(--subtext)">${r.causa_tempo}</td></tr>`;
+  }).join('');
+  document.getElementById('footcount').textContent=`${rows.length} de ${rawData.length} rotas exibidas`;
+}
+
+// ── RENDER RELATÓRIO ──────────────────────────────────────────────────────────
+function renderRelatorio(forceRefresh=true){
+  const excBip = rawData.filter(r=>r.status!=='Sem Bip');
+  const total=rawData.length, aderente=rawData.filter(r=>r.status==='Aderente').length;
+  const notOk=rawData.filter(r=>r.status==='Delay').length;
+  const pct=total?Math.round((aderente/total)*100):0;
+  const gap=pct-85;
+
+  // header
+  const rpEl=document.getElementById('rel-resultado-pct');
+  if(!manualGeral){rpEl.textContent=pct+'%';rpEl.className='mv '+(pct>=85?'result-ok':'result-bad');}
+
+  // resultado geral — preserve manual edits unless forcing refresh
+  if(forceRefresh || !manualGeral){
+    const rgPct=document.getElementById('rg-pct');
+    rgPct.textContent=pct+'%';
+    rgPct.className='res-pct '+(pct>=85?'ok':'bad');
+    document.getElementById('rg-total').textContent=total;
+    document.getElementById('rg-nad').textContent=notOk;
+    const gapEl=document.getElementById('rg-gap');
+    gapEl.textContent=(gap>=0?'+':'')+gap+' p.p.';
+    gapEl.className='res-gap '+(gap>=0?'ok':'');
+  } else {
+    // re-apply manual values
+    applyEditGeralSilent(manualGeral);
+  }
+
+  // ciclos
+  const cyclesCiclo2=[...new Set(rawData.map(r=>r.cycle))].filter(cy=>cy&&cy!=='—');
+  if(forceRefresh || !manualCiclos){ document.getElementById('ciclo-row').innerHTML=cyclesCiclo2.map(c=>{
+    const cr=rawData.filter(r=>r.cycle===c);
+    const cp=cr.length?Math.round((cr.filter(r=>r.status==='Aderente').length/cr.length)*100):0;
+    const cls=cp>=85?'ok':cp>=70?'warn':'bad';
+    return`<div class="ciclo-item">
+      <div class="ci-name">${c}</div>
+      <div class="ci-pct ${cls}">${cp}%</div>
+      <div class="ci-bar"><div class="ci-bar-fill" style="width:${cp}%;background:${cp>=85?'#22c55e':cp>=70?'#facc15':'#ef4444'}"></div></div>
+      <div class="ci-sub">${cr.length} rotas · ${cr.filter(r=>r.status!=='Aderente').length} não ader.</div>
+    </div>`;
+  }).join(''); } else { applyEditCicloSilent(manualCiclos); }
+
+  // pie MLP ofensoras (transportadoras com delay)
+  const delayedRows=rawData.filter(r=>r.status==='Delay');
+  const transCounts={};
+  delayedRows.forEach(r=>{const t=r.transportadora||'Outros';transCounts[t]=(transCounts[t]||0)+1;});
+  const sorted=Object.entries(transCounts).sort((a,b)=>b[1]-a[1]);
+  const top8=sorted.slice(0,8), rest=sorted.slice(8);
+  const labels=top8.map(([t])=>t); const values=top8.map(([,v])=>v);
+  if(rest.length){labels.push('Outros');values.push(rest.reduce((s,[,v])=>s+v,0));}
+  const colors=['#3b82f6','#ef4444','#22c55e','#facc15','#a855f7','#f97316','#06b6d4','#84cc16','#6b7280'];
+  // Build pie labels with % + count + cycle breakdown
+  const pieTotal = values.reduce((s,v)=>s+v,0);
+  const richLabels = labels.map((l,i)=>{
+    const pct = pieTotal ? ((values[i]/pieTotal)*100).toFixed(1) : 0;
+    return `${l}  ${pct}% (${values[i]})`;
+  });
+  if(pieChartInst) pieChartInst.destroy();
+  pieChartInst=new Chart(document.getElementById('pieChart'),{
+    type:'doughnut',
+    data:{labels:richLabels,datasets:[{data:values,backgroundColor:colors,borderWidth:2,borderColor:'#181c27'}]},
+    options:{
+      plugins:{
+        legend:{position:'right',labels:{color:'#94a3b8',font:{size:10},boxWidth:12,padding:6}},
+        tooltip:{callbacks:{label:ctx=>{
+          const orig=labels[ctx.dataIndex];
+          const pct=pieTotal?((ctx.parsed/pieTotal)*100).toFixed(1):0;
+          const byCycle=cycleList.map(cy=>{
+            const grp=delayedRows.filter(r=>r.transportadora===orig&&r.cycle===cy);
+            return grp.length?`${cy}:${grp.length}`:'';
+          }).filter(Boolean).join(' ');
+          return [`${pct}% — ${ctx.parsed} rotas`, byCycle].filter(Boolean);
+        }}}
+      },
+      cutout:'55%'
+    }
+  });
+
+  // causa tempo bars — excluir On Time
+  const cycleList=[...new Set(rawData.map(r=>r.cycle))].filter(c=>c&&c!=='—').sort();
+  const ctCounts={};
+  const ctByCycle={};
+  rawData.forEach(r=>{
+    const ct=r.causa_tempo||'';
+    if(ct&&ct!=='—'&&!ct.toLowerCase().includes('on time')&&!ct.toLowerCase().includes('on_time')){
+      ctCounts[ct]=(ctCounts[ct]||0)+1;
+      if(!ctByCycle[ct]) ctByCycle[ct]={};
+      ctByCycle[ct][r.cycle]=(ctByCycle[ct][r.cycle]||0)+1;
+    }
+  });
+  const ctTotal=Object.values(ctCounts).reduce((s,v)=>s+v,0);
+  const ctSorted=Object.entries(ctCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const barColors=['#ef4444','#6b7280','#f97316','#3b82f6','#a855f7','#22c55e'];
+  document.getElementById('causa-tempo-bars').innerHTML=ctSorted.map(([label,count],i)=>{
+    const p=ctTotal?((count/ctTotal)*100).toFixed(1):0;
+    const cycleBreak=cycleList.map(cy=>`<span style="color:var(--muted);font-size:10px">${cy}:<b style="color:var(--subtext)">${ctByCycle[label]?.[cy]||0}</b></span>`).join(' ');
+    return`<div style="margin-bottom:10px">
+      <div class="bar-row" style="margin-bottom:3px">
+        <div class="br-label" title="${label}">${label}</div>
+        <div class="br-track"><div class="br-fill" style="width:${p}%;background:${barColors[i%barColors.length]}"></div></div>
+        <div class="br-info" style="color:${barColors[i%barColors.length]}">${p}% <span style="color:var(--muted);font-size:10px">(${count})</span></div>
+      </div>
+      <div style="padding-left:2px;display:flex;gap:10px">${cycleBreak}</div>
+    </div>`;
+  }).join('');
+
+  // causa processo bars — excluir On Time
+  const cpCounts={};
+  const cpByCycle={};
+  rawData.forEach(r=>{
+    const cp=r.causa_processo||'';
+    if(cp&&cp!=='—'&&!cp.toLowerCase().includes('on time')&&!cp.toLowerCase().includes('on_time')){
+      cpCounts[cp]=(cpCounts[cp]||0)+1;
+      if(!cpByCycle[cp]) cpByCycle[cp]={};
+      cpByCycle[cp][r.cycle]=(cpByCycle[cp][r.cycle]||0)+1;
+    }
+  });
+  const cpTotal=Object.values(cpCounts).reduce((s,v)=>s+v,0);
+  const cpSorted=Object.entries(cpCounts).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const procColors=['#ef4444','#3b82f6','#6b7280','#ec4899','#6b7280','#22c55e'];
+  document.getElementById('causa-proc-bars').innerHTML=cpSorted.map(([label,count],i)=>{
+    const p=cpTotal?((count/cpTotal)*100).toFixed(1):0;
+    const cycleBreak=cycleList.map(cy=>`<span style="color:var(--muted);font-size:10px">${cy}:<b style="color:var(--subtext)">${cpByCycle[label]?.[cy]||0}</b></span>`).join(' ');
+    return`<div style="margin-bottom:10px">
+      <div class="bar-row" style="margin-bottom:3px">
+        <div class="br-label" title="${label}">${label}</div>
+        <div class="br-track"><div class="br-fill" style="width:${p}%;background:${procColors[i%procColors.length]}"></div></div>
+        <div class="br-info" style="color:${procColors[i%procColors.length]}">${p}% <span style="color:var(--muted);font-size:10px">(${count})</span></div>
+      </div>
+      <div style="padding-left:2px;display:flex;gap:10px">${cycleBreak}</div>
+    </div>`;
+  }).join('');
+
+  // pontos de atenção
+  const topCT=ctSorted[0]?ctSorted[0][0]:'—';
+  const topCTpct=ctSorted[0]&&ctTotal?((ctSorted[0][1]/ctTotal)*100).toFixed(1):0;
+  const topCP=cpSorted[0]?cpSorted[0][0]:'—';
+  const topTrans=sorted[0]?sorted[0][0]:'—';
+  const topTrans2=sorted[1]?', '+sorted[1][0]:'';
+  const semBipN=rawData.filter(r=>r.status==='Sem Bip').length;
+  document.getElementById('atencao-items').innerHTML=`
+    <div class="atencao-item"><div class="ai-icon">⏰</div><div class="ai-text">${topCT} é o principal impacto de tempo (${topCTpct}% das causas).</div></div>
+    <div class="atencao-item"><div class="ai-icon">⚙️</div><div class="ai-text">${topCP} é a principal causa de processo — impacta aderência das ondas.</div></div>
+    <div class="atencao-item"><div class="ai-icon">🚚</div><div class="ai-text">Sem BIP (${semBipN} rotas) ainda gera desvios importantes.</div></div>
+    <div class="atencao-item"><div class="ai-icon">👥</div><div class="ai-text">Foco nas transportadoras: ${topTrans}${topTrans2}.</div></div>`;
+}
+
+// ── SILENT APPLY (restore manual values without toggling edit mode) ─────────
+function applyEditGeralSilent(v){
+  const gap=+(v.pct-85).toFixed(1);
+  const rgPct=document.getElementById('rg-pct');
+  if(!rgPct) return;
+  rgPct.textContent=v.pct+'%';
+  rgPct.className='res-pct '+(v.pct>=85?'ok':'bad');
+  document.getElementById('rg-total').textContent=v.total;
+  document.getElementById('rg-nad').textContent=v.nad;
+  const gapEl=document.getElementById('rg-gap');
+  gapEl.textContent=(gap>=0?'+':'')+gap+' p.p.';
+  gapEl.className='res-gap '+(gap>=0?'ok':'');
+  const rpEl=document.getElementById('rel-resultado-pct');
+  if(rpEl){rpEl.textContent=v.pct+'%';rpEl.className='mv '+(v.pct>=85?'result-ok':'result-bad');}
+}
+function applyEditCicloSilent(ciclos){
+  const el=document.getElementById('ciclo-row');
+  if(!el) return;
+  el.innerHTML=ciclos.map(c=>{
+    const p=c.total?+(c.aderentes/c.total*100).toFixed(1):0;
+    const cls=p>=85?'ok':p>=70?'warn':'bad';
+    return`<div class="ciclo-item">
+      <div class="ci-name">${c.name}</div>
+      <div class="ci-pct ${cls}">${p}%</div>
+      <div class="ci-bar"><div class="ci-bar-fill" style="width:${p}%;background:${p>=85?'#22c55e':p>=70?'#facc15':'#ef4444'}"></div></div>
+      <div class="ci-sub">${c.total} rotas · ${c.total-c.aderentes} não ader.</div>
+    </div>`;
+  }).join('');
+}
+// ── EDIT GERAL ───────────────────────────────────────────────────────────────
+let manualGeral = null;
+function toggleEditGeral(){
+  const edit = document.getElementById('rg-edit');
+  const view = document.getElementById('rg-view');
+  const btn  = document.getElementById('btn-edit-geral');
+  const isOpen = edit.style.display !== 'none';
+  edit.style.display = isOpen ? 'none' : 'block';
+  view.style.display = isOpen ? 'block' : 'none';
+  btn.textContent = isOpen ? '✏️ Editar' : '✕ Fechar';
+  btn.classList.toggle('active', !isOpen);
+  if(!isOpen && manualGeral){
+    document.getElementById('ei-pct').value   = manualGeral.pct;
+    document.getElementById('ei-total').value = manualGeral.total;
+    document.getElementById('ei-nad').value   = manualGeral.nad;
+  }
+}
+function applyEditGeral(){
+  const pct   = parseFloat(document.getElementById('ei-pct').value);
+  const total = parseInt(document.getElementById('ei-total').value);
+  const nad   = parseInt(document.getElementById('ei-nad').value);
+  if(isNaN(pct)||isNaN(total)||isNaN(nad)){alert('Preencha todos os campos.');return;}
+  manualGeral = {pct, total, nad};
+  const gap = +(pct - 85).toFixed(1);
+  const rgPct = document.getElementById('rg-pct');
+  rgPct.textContent = pct + '%';
+  rgPct.className = 'res-pct ' + (pct >= 85 ? 'ok' : 'bad');
+  document.getElementById('rg-total').textContent = total;
+  document.getElementById('rg-nad').textContent   = nad;
+  const gapEl = document.getElementById('rg-gap');
+  gapEl.textContent = (gap >= 0 ? '+' : '') + gap + ' p.p.';
+  gapEl.className = 'res-gap ' + (gap >= 0 ? 'ok' : '');
+  const rpEl = document.getElementById('rel-resultado-pct');
+  rpEl.textContent = pct + '%';
+  rpEl.className = 'mv ' + (pct >= 85 ? 'result-ok' : 'result-bad');
+  toggleEditGeral();
+}
+
+// ── EDIT CICLO ────────────────────────────────────────────────────────────────
+let manualCiclos = null;
+let cicloEditData = [];
+function toggleEditCiclo(){
+  const edit = document.getElementById('ciclo-edit');
+  const view = document.getElementById('ciclo-view');
+  const btn  = document.getElementById('btn-edit-ciclo');
+  const isOpen = edit.style.display !== 'none';
+  edit.style.display = isOpen ? 'none' : 'block';
+  view.style.display = isOpen ? 'block' : 'none';
+  btn.textContent = isOpen ? '✏️ Editar' : '✕ Fechar';
+  btn.classList.toggle('active', !isOpen);
+  if(!isOpen) buildCicloEditRows();
+}
+function buildCicloEditRows(){
+  // Seed from manualCiclos or from rawData
+  const source = manualCiclos || (()=>{
+    const cyclesCiclo = [...new Set(rawData.map(r=>r.cycle))].filter(c=>c&&c!=='—');
+    return cycles.map(c=>{
+      const grp = rawData.filter(r=>r.cycle===c);
+      const t = grp.length, ok = grp.filter(r=>r.status==='Aderente').length;
+      return {name:c, total:t, aderentes:ok, nao:t-ok};
+    });
+  })();
+  cicloEditData = source.map(c=>({...c}));
+  renderCicloEditRows();
+}
+function renderCicloEditRows(){
+  document.getElementById('ciclo-edit-rows').innerHTML = `
+    <div class="ciclo-edit-row" style="margin-bottom:2px">
+      <div class="col-label">Ciclo</div>
+      <div class="col-label">Total</div>
+      <div class="col-label">Aderentes</div>
+      <div class="col-label">% OOT</div>
+      <div></div>
+    </div>` +
+    cicloEditData.map((c,i)=>`
+    <div class="ciclo-edit-row">
+      <input value="${c.name}" onchange="cicloEditData[${i}].name=this.value" placeholder="AM1"/>
+      <input type="number" value="${c.total}" onchange="cicloEditData[${i}].total=+this.value" min="0"/>
+      <input type="number" value="${c.aderentes}" onchange="cicloEditData[${i}].aderentes=+this.value" min="0"/>
+      <input type="number" value="${+(c.aderentes/c.total*100).toFixed(1)||0}" readonly style="color:var(--muted)" id="pct-ciclo-${i}"/>
+      <button class="del-ciclo" onclick="cicloEditData.splice(${i},1);renderCicloEditRows()">✕</button>
+    </div>`).join('');
+  // live pct update
+  cicloEditData.forEach((_,i)=>{
+    const tEl = document.querySelector(`.ciclo-edit-row:nth-child(${i+2}) input:nth-child(2)`);
+    const aEl = document.querySelector(`.ciclo-edit-row:nth-child(${i+2}) input:nth-child(3)`);
+    const pEl = document.getElementById('pct-ciclo-'+i);
+    if(tEl&&aEl&&pEl){
+      [tEl,aEl].forEach(el=>el.addEventListener('input',()=>{
+        const t=+tEl.value||0, a=+aEl.value||0;
+        pEl.value = t ? (a/t*100).toFixed(1) : 0;
+      }));
+    }
+  });
+}
+function addCicloEditRow(){
+  cicloEditData.push({name:'',total:0,aderentes:0});
+  renderCicloEditRows();
+}
+function applyEditCiclo(){
+  manualCiclos = cicloEditData.map(c=>({...c}));
+  document.getElementById('ciclo-row').innerHTML = manualCiclos.map(c=>{
+    const p = c.total ? +(c.aderentes/c.total*100).toFixed(1) : 0;
+    const cls = p>=85?'ok':p>=70?'warn':'bad';
+    return`<div class="ciclo-item">
+      <div class="ci-name">${c.name}</div>
+      <div class="ci-pct ${cls}">${p}%</div>
+      <div class="ci-bar"><div class="ci-bar-fill" style="width:${p}%;background:${p>=85?'#22c55e':p>=70?'#facc15':'#ef4444'}"></div></div>
+      <div class="ci-sub">${c.total} rotas · ${c.total-c.aderentes} não ader.</div>
+    </div>`;
+  }).join('');
+  toggleEditCiclo();
+}
+
+// ── CLOCK ─────────────────────────────────────────────────────────────────────
+// ── AUTO LOAD FROM SHEETS ────────────────────────────────────────────────────
+const SHEETS_URL = 'https://api.allorigins.win/raw?url=https://docs.google.com/spreadsheets/d/e/2PACX-1vSwn4ZNU_c_AhnrYf2F-kezMbrpgodvJSdznexMZCmu4bv_fsmp8_YdepCbkIq6P93K9WVLie5s3orc/pub?output=csv';
+
+async function loadFromSheets() {
+  const status = document.getElementById('autoLoadStatus');
+  const banner = document.getElementById('autoLoadBanner');
+  if(status) status.textContent = 'Buscando...';
+  try {
+    const resp = await fetch(SHEETS_URL);
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const text = await resp.text();
+    parseCSV(text, 'Google Sheets — OOT 3.0');
+    if(status) status.textContent = '✅ Atualizado às ' + new Date().toLocaleTimeString('pt-BR');
+    if(banner) banner.style.background = '#14532d44';
+  } catch(e) {
+    if(status) status.textContent = '⚠️ Erro — use upload manual';
+    console.error('Sheets error:', e);
+  }
+}
+
+// Auto-load on page open
+window.addEventListener('load', () => setTimeout(loadFromSheets, 500));
+
+function tick(){
+  document.getElementById('clock').textContent=
+    new Date().toLocaleDateString('pt-BR')+'  '+new Date().toLocaleTimeString('pt-BR');
+}
+tick(); setInterval(tick,1000);
+</script>
+</body>
+</html>
