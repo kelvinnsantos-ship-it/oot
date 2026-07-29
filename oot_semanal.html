@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>OOT 3.0 — Visão Semanal</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+:root{
+  --bg:#0f1117;--surface:#181c27;--border:#252b3b;
+  --accent:#3b82f6;--green:#22c55e;--yellow:#facc15;--red:#ef4444;--orange:#f97316;
+  --muted:#6b7280;--subtext:#94a3b8;--text:#e2e8f0;
+  --mono:'IBM Plex Mono',monospace;--sans:'Inter',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;min-height:100vh;}
+
+/* UPLOAD */
+.upload-zone{margin:24px;border:2px dashed var(--border);border-radius:10px;padding:48px;text-align:center;cursor:pointer;transition:all .2s;background:var(--surface);}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent);background:#1a2035;}
+.upload-zone .icon{font-size:40px;margin-bottom:14px;}
+.upload-zone h3{font-size:16px;font-weight:700;margin-bottom:6px;}
+.upload-zone p{font-size:12px;color:var(--subtext);}
+.upload-zone .hint{margin-top:10px;font-size:11px;color:var(--muted);font-family:var(--mono);}
+#fileInput{display:none;}
+.file-badge{display:inline-flex;align-items:center;gap:6px;background:#14532d33;border:1px solid #22c55e44;color:var(--green);border-radius:20px;padding:4px 14px;font-size:11px;font-family:var(--mono);}
+.file-badge button{background:none;border:none;color:var(--muted);cursor:pointer;font-size:14px;}
+.file-badge button:hover{color:var(--red);}
+
+/* REPORT WRAPPER */
+#reportWrap{display:none;font-family:var(--sans);}
+
+/* ── HEADER ── */
+.rpt-header{background:linear-gradient(135deg,#0d1b2a,#1a2744);border-bottom:3px solid var(--yellow);padding:18px 28px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+.ml-logo{width:52px;height:52px;background:#FFE600;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.rpt-header-center{flex:1;}
+.rpt-header-center .week-label{font-size:11px;color:var(--yellow);letter-spacing:.1em;text-transform:uppercase;margin-bottom:2px;display:flex;align-items:center;gap:6px;}
+.rpt-header-center .title{font-size:30px;font-weight:800;color:#fff;letter-spacing:-.02em;}
+.rpt-header-center .title span{color:var(--yellow);}
+.rpt-header-center .periodo{font-size:12px;color:var(--subtext);margin-top:4px;}
+.rpt-kpis{display:flex;gap:24px;align-items:center;flex-wrap:wrap;}
+.rpt-kpi{text-align:center;padding:0 16px;border-left:1px solid #2a3a5c;}
+.rpt-kpi .rkl{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--subtext);margin-bottom:3px;display:flex;align-items:center;gap:5px;}
+.rpt-kpi .rkv{font-size:22px;font-weight:800;font-family:var(--mono);}
+.rpt-kpi .rkv.target{color:var(--accent);}
+.rpt-kpi .rkv.ok{color:var(--green);}
+.rpt-kpi .rkv.bad{color:var(--red);}
+.rpt-kpi .rkv.gap-bad{color:var(--red);}
+.rpt-kpi .rkv.gap-ok{color:var(--green);}
+.facility-tag{background:#facc1522;border:1px solid var(--yellow);color:var(--yellow);border-radius:8px;padding:8px 16px;font-size:13px;font-weight:700;text-align:center;flex-shrink:0;}
+.facility-tag .ft-sub{font-size:10px;font-weight:400;color:var(--subtext);margin-top:2px;}
+
+/* ── BODY ── */
+.rpt-body{padding:16px 20px 0;}
+
+/* Row 1: resultado geral + ciclos + total */
+.row-1{display:grid;grid-template-columns:280px 1fr 180px;gap:12px;margin-bottom:12px;}
+@media(max-width:900px){.row-1{grid-template-columns:1fr 1fr;}}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px 18px;}
+.card-title{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+
+/* resultado geral */
+.rg-pct{font-size:54px;font-weight:800;font-family:var(--mono);line-height:1;display:flex;align-items:center;gap:10px;}
+.rg-pct .arrow{font-size:28px;}
+.rg-pct.ok{color:var(--green);} .rg-pct.bad{color:var(--red);}
+.rg-target{font-size:15px;font-weight:700;color:var(--subtext);margin-top:6px;}
+.rg-gap-badge{display:inline-block;background:#7f1d1d;color:var(--red);border-radius:4px;padding:5px 14px;font-weight:800;font-size:15px;margin-top:8px;width:100%;text-align:center;}
+.rg-gap-badge.ok{background:#14532d;color:var(--green);}
+
+/* ciclos */
+.ciclos-grid{display:flex;gap:10px;}
+.ciclo-box{flex:1;background:#0f1117;border-radius:8px;padding:12px 8px;text-align:center;}
+.ciclo-box .cn{font-size:13px;font-weight:800;color:var(--text);margin-bottom:6px;letter-spacing:.04em;}
+.ciclo-box .cp{font-size:32px;font-weight:800;font-family:var(--mono);line-height:1;}
+.ciclo-box .cp.ok{color:var(--green);} .ciclo-box .cp.warn{color:var(--yellow);} .ciclo-box .cp.bad{color:var(--red);}
+.ciclo-box .cbar{height:6px;background:#1e293b;border-radius:3px;margin:8px 0 4px;overflow:hidden;}
+.ciclo-box .cbar-fill{height:100%;border-radius:3px;}
+.ciclo-box .csub{font-size:10px;color:var(--muted);}
+.ciclo-box .cnad{font-size:10px;font-weight:700;}
+.ciclo-box .cnad.bad{color:var(--red);}
+
+/* total box */
+.total-box{display:flex;flex-direction:column;justify-content:center;gap:16px;}
+.total-item .til{font-size:11px;color:var(--subtext);margin-bottom:4px;display:flex;align-items:center;gap:6px;}
+.total-item .tiv{font-size:36px;font-weight:800;font-family:var(--mono);line-height:1;}
+.total-item .tiv.bad{color:var(--red);}
+
+/* Row 2: causa tempo + causa processo + oot modal + mlp */
+.row-2{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:12px;margin-bottom:12px;}
+@media(max-width:1100px){.row-2{grid-template-columns:1fr 1fr;}}
+
+/* bar charts */
+.bar-row{display:flex;align-items:center;gap:6px;margin-bottom:7px;}
+.br-label{font-size:11px;color:var(--subtext);width:155px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.br-track{flex:1;height:7px;background:#1e293b;border-radius:4px;overflow:hidden;}
+.br-fill{height:100%;border-radius:4px;}
+.br-info{font-size:11px;font-family:var(--mono);width:76px;text-align:right;flex-shrink:0;white-space:nowrap;}
+.card-note{margin-top:10px;background:#1a1a0a;border:1px solid #facc1533;border-radius:6px;padding:8px 10px;font-size:11px;color:var(--subtext);display:flex;gap:7px;align-items:flex-start;}
+
+/* modal bars */
+.modal-row{display:flex;align-items:center;gap:5px;margin-bottom:5px;}
+.modal-label{font-size:10px;color:var(--subtext);width:80px;flex-shrink:0;}
+.modal-track{flex:1;height:6px;background:#1e293b;border-radius:3px;overflow:hidden;}
+.modal-fill{height:100%;border-radius:3px;}
+.modal-pct{font-size:10px;font-family:var(--mono);width:32px;text-align:right;flex-shrink:0;}
+
+/* pie */
+canvas{max-height:180px;}
+  .edit-btn{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer;transition:all .15s;}
+  .edit-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .edit-btn.active{border-color:var(--yellow);color:var(--yellow);}
+  .btn-apply{background:var(--accent);color:#fff;border:none;border-radius:4px;padding:7px 16px;font-size:12px;cursor:pointer;margin-top:8px;width:100%;}
+  .btn-apply:hover{background:#2563eb;}
+  .edit-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+  .edit-row label{font-size:11px;color:var(--subtext);width:100px;flex-shrink:0;}
+  .edit-row input{flex:1;background:var(--bg);border:1px solid var(--border);color:var(--text);padding:5px 8px;border-radius:4px;font-size:12px;font-family:var(--mono);outline:none;}
+  .edit-row input:focus{border-color:var(--accent);}
+  .ciclo-edit-row{display:grid;grid-template-columns:70px 1fr 1fr 1fr 20px;gap:5px;align-items:center;margin-bottom:5px;}
+  .ciclo-edit-row input{background:var(--bg);border:1px solid var(--border);color:var(--text);padding:3px 5px;border-radius:3px;font-size:11px;font-family:var(--mono);outline:none;width:100%;}
+  .ciclo-edit-row input:focus{border-color:var(--accent);}
+  .cer-col{font-size:9px;color:var(--muted);text-align:center;}
+  .del-row{background:none;border:none;color:var(--muted);cursor:pointer;font-size:13px;}
+  .del-row:hover{color:var(--red);}
+
+/* ── FOOTER PONTOS ── */
+.rpt-footer{background:#0d1117;border-top:2px solid var(--yellow);padding:16px 20px;margin-top:0;}
+.footer-grid{display:grid;grid-template-columns:160px 1fr 1fr 1fr 1fr;gap:0;align-items:start;}
+.footer-title{display:flex;flex-direction:column;gap:4px;padding-right:16px;border-right:1px solid var(--border);}
+.footer-title .ft-icon{font-size:20px;}
+.footer-title .ft-label{font-size:12px;font-weight:800;color:var(--yellow);text-transform:uppercase;letter-spacing:.06em;line-height:1.2;}
+.footer-item{display:flex;gap:10px;align-items:flex-start;padding:0 16px;}
+.footer-item .fi-icon{font-size:20px;flex-shrink:0;margin-top:1px;}
+.footer-item .fi-text{font-size:11px;color:var(--subtext);line-height:1.5;}
+.footer-item .fi-text b{color:var(--text);}
+
+/* FILE BADGE TOP */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:8px 20px;background:var(--surface);border-bottom:1px solid var(--border);}
+.topbar .ts{font-family:var(--mono);font-size:11px;color:var(--muted);}
+</style>
+</head>
+<body>
+
+<!-- UPLOAD -->
+<div id="uploadSection">
+  <div class="upload-zone" id="dropZone" onclick="document.getElementById('fileInput').click()">
+    <div class="icon">📅</div>
+    <h3>Carregar CSV semanal — OOT 3.0</h3>
+    <p>Exporte o CSV da semana na grid filtrando pelo período desejado</p>
+    <div class="hint">Exemplo: 19/07 – 25/07 → exportar → arrastar aqui</div>
+  </div>
+  <input type="file" id="fileInput" accept=".csv,.tsv,.txt"/>
+</div>
+
+<!-- REPORT -->
+<div id="reportWrap">
+
+  <!-- topbar -->
+  <div class="topbar">
+    <span class="file-badge">📄 <span id="fileName">—</span> <button onclick="clearData()">✕</button></span>
+    <span class="ts" id="clock">—</span>
+  </div>
+
+  <!-- header -->
+  <div class="rpt-header">
+    <div class="ml-logo">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+        <path d="M5 14L10 9L15 14L20 9L25 14" stroke="#333" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M5 18C5 18 9 24 15 24C21 24 25 18 25 18" stroke="#333" stroke-width="2.5" stroke-linecap="round"/>
+        <circle cx="11" cy="17" r="1.8" fill="#333"/>
+        <circle cx="19" cy="17" r="1.8" fill="#333"/>
+      </svg>
+    </div>
+    <div class="rpt-header-center">
+      <div class="week-label">📅 <span id="hdr-periodo">—</span></div>
+      <div class="title">OOT 3.0 – <span id="hdr-week" onclick="editWeek()" title="Clique para editar a semana" style="cursor:pointer;border-bottom:2px dashed #facc1566;padding-bottom:2px">—</span>
+        <div id="week-edit" style="display:none;margin-top:6px;display:none">
+          <input id="week-input" type="text" placeholder="W31" style="background:#0d1b2a;border:1px solid var(--yellow);color:var(--yellow);font-size:20px;font-weight:800;padding:4px 10px;border-radius:4px;font-family:var(--mono);width:100px;outline:none"/>
+          <button onclick="applyWeek()" style="margin-left:6px;background:var(--yellow);border:none;color:#000;font-weight:700;padding:5px 12px;border-radius:4px;cursor:pointer;font-size:13px">OK</button>
+        </div></div>
+    </div>
+    <div class="rpt-kpis">
+      <div class="rpt-kpi">
+        <div class="rkl">🎯 Target</div>
+        <div class="rkv target">85%</div>
+      </div>
+      <div class="rpt-kpi">
+        <div class="rkl">📈 Resultado</div>
+        <div class="rkv" id="hdr-resultado">—</div>
+      </div>
+      <div class="rpt-kpi">
+        <div class="rkl">⚠ Gap</div>
+        <div class="rkv" id="hdr-gap">—</div>
+      </div>
+    </div>
+    <div class="facility-tag">SSC8 – Itajaí-SC<div class="ft-sub">Sul</div></div>
+  </div>
+
+  <!-- body -->
+  <div class="rpt-body">
+
+    <!-- Row 1 -->
+    <div class="row-1">
+
+      <!-- Resultado Geral -->
+      <div class="card">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>📋 Resultado Geral</span>
+          <button class="edit-btn" onclick="toggleEditRG()" id="btn-rg">✏️ Editar</button>
+        </div>
+        <div id="rg-view">
+          <div class="rg-pct" id="rg-pct">—</div>
+          <div class="rg-target">TARGET: <strong style="color:var(--accent)">85%</strong></div>
+          <div class="rg-gap-badge" id="rg-gap">—</div>
+        </div>
+        <div id="rg-edit-box" style="display:none">
+          <div class="edit-row"><label>% OOT</label><input type="number" id="ei-pct" step="0.01" placeholder="69.79"/></div>
+          <div class="edit-row"><label>Total rotas</label><input type="number" id="ei-total" placeholder="1592"/></div>
+          <div class="edit-row"><label>Não aderentes</label><input type="number" id="ei-nad" placeholder="459"/></div>
+          <button class="btn-apply" onclick="applyEditRG()">Aplicar</button>
+        </div>
+      </div>
+
+      <!-- Resultado por Ciclo -->
+      <div class="card">
+        <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
+          <span>🔄 Resultado por Ciclo</span>
+          <button class="edit-btn" onclick="toggleEditCiclo()" id="btn-ciclo">✏️ Editar</button>
+        </div>
+        <div id="ciclo-view">
+          <div class="ciclos-grid" id="ciclos-grid"></div>
+        </div>
+        <div id="ciclo-edit-box" style="display:none">
+          <div id="ciclo-edit-rows"></div>
+          <button class="edit-btn" onclick="addCicloRow()" style="margin-top:6px;font-size:11px;border-style:dashed;">+ Ciclo</button>
+          <button class="btn-apply" onclick="applyEditCiclo()">Aplicar</button>
+        </div>
+      </div>
+
+      <!-- Totais -->
+      <div class="card total-box">
+        <div class="total-item">
+          <div class="til">📋 Total de rotas:</div>
+          <div class="tiv" id="tot-total">—</div>
+        </div>
+        <div class="total-item">
+          <div class="til">❌ Rotas não aderentes:</div>
+          <div class="tiv bad" id="tot-nad">—</div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Row 2 -->
+    <div class="row-2">
+
+      <!-- Causa Tempo -->
+      <div class="card">
+        <div class="card-title">🕐 Causa Tempo <span style="font-weight:400;color:var(--muted)">— % acumulada</span></div>
+        <div id="causa-tempo-bars"></div>
+        <div class="card-note" id="nota-tempo"></div>
+      </div>
+
+      <!-- Causa Processo -->
+      <div class="card">
+        <div class="card-title">⚙️ Causa Processo <span style="font-weight:400;color:var(--muted)">— % acumulada</span></div>
+        <div id="causa-proc-bars"></div>
+        <div class="card-note" id="nota-proc"></div>
+      </div>
+
+      <!-- OOT por Modal -->
+      <div class="card">
+        <div class="card-title">🚚 OOT por Modal <span style="font-weight:400;color:var(--muted)">— % On Time por veículo</span></div>
+        <div id="modal-bars"></div>
+        <div class="card-note" id="nota-modal"></div>
+      </div>
+
+      <!-- MLP Ofensoras -->
+      <div class="card">
+        <div class="card-title">🏢 MLP Ofensoras <span style="font-weight:400;color:var(--muted)">— por atraso chegada driver</span></div>
+        <canvas id="pieChart"></canvas>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Footer pontos de atenção -->
+  <div class="rpt-footer">
+    <div class="footer-grid">
+      <div class="footer-title">
+        <div class="ft-icon">📣</div>
+        <div class="ft-label">Principais Pontos de Atenção</div>
+      </div>
+      <div class="footer-item"><div class="fi-icon">⏰</div><div class="fi-text" id="fp-1">—</div></div>
+      <div class="footer-item"><div class="fi-icon">📋</div><div class="fi-text" id="fp-2">—</div></div>
+      <div class="footer-item"><div class="fi-icon">🚚</div><div class="fi-text" id="fp-3">—</div></div>
+      <div class="footer-item"><div class="fi-icon">👥</div><div class="fi-text" id="fp-4">—</div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const DIAS=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+const CORES=['#3b82f6','#ef4444','#22c55e','#facc15','#a855f7','#f97316','#06b6d4','#84cc16','#6b7280'];
+const BAR_COLORS=['#ef4444','#f97316','#3b82f6','#6b7280','#a855f7','#22c55e','#facc15','#06b6d4'];
+const PROC_COLORS=['#ef4444','#3b82f6','#6b7280','#ec4899','#facc15','#22c55e','#f97316','#06b6d4'];
+
+function parseDateBR(s){const[d,m,y]=s.split('/').map(Number);return new Date(y,m-1,d);}
+function getISOWeek(d){const dt=new Date(d);dt.setHours(0,0,0,0);dt.setDate(dt.getDate()+3-(dt.getDay()+6)%7);const w=new Date(dt.getFullYear(),0,4);return 1+Math.round(((dt-w)/86400000-3+(w.getDay()+6)%7)/7);}
+function pctColor(p){return p>=85?'var(--green)':p>=70?'var(--yellow)':'var(--red)';}
+function pctClass(p){return p>=85?'ok':p>=70?'warn':'bad';}
+
+let rawData=[],pieInst=null;
+const ALIASES={
+  data:['data','date','data_operacao'],facility:['facility','cd'],
+  cycle:['cycle','turno','ciclo'],modal:['modal','tipo_veiculo','vehicle_type'],
+  transportadora:['transportadora','carrier','nome_transportadora'],
+  status:['status','situacao'],atraso_min:['atraso_min','atraso','delay_min'],
+  causa_tempo:['causa_tempo','time_cause'],causa_processo:['causa_processo','process_cause'],
+};
+
+const dropZone=document.getElementById('dropZone');
+dropZone.addEventListener('dragover',e=>{e.preventDefault();dropZone.classList.add('drag');});
+dropZone.addEventListener('dragleave',()=>dropZone.classList.remove('drag'));
+dropZone.addEventListener('drop',e=>{e.preventDefault();dropZone.classList.remove('drag');handleFile(e.dataTransfer.files[0]);});
+document.getElementById('fileInput').addEventListener('change',e=>handleFile(e.target.files[0]));
+
+function handleFile(file){
+  if(!file)return;
+  document.getElementById('fileName').textContent=file.name;
+  const r=new FileReader();r.onload=e=>parseCSV(e.target.result);r.readAsText(file,'UTF-8');
+}
+
+function parseCSV(text){
+  text=text.replace(/^\uFEFF/,'');
+  const first=text.split('\n')[0];
+  const delim=first.includes('\t')?'\t':first.includes(';')?';':',';
+  const lines=text.trim().split('\n').filter(l=>l.trim());
+  const headers=lines[0].split(delim).map(h=>h.trim().replace(/^"|"$/g,'').toLowerCase());
+  const colMap={};
+  for(const[field,aliases]of Object.entries(ALIASES)){const m=headers.find(h=>aliases.includes(h));if(m)colMap[field]=m;}
+  const get=(row,f)=>colMap[f]?(row[colMap[f]]||''):'';
+  rawData=lines.slice(1).map(line=>{
+    const vals=line.split(delim).map(v=>v.trim().replace(/^"|"$/g,''));
+    const row={};headers.forEach((h,i)=>row[h]=vals[i]||'');
+    const st=get(row,'status');
+    return{
+      data:get(row,'data')||'—',facility:get(row,'facility')||'—',
+      cycle:get(row,'cycle')||'—',modal:get(row,'modal')||'—',
+      transportadora:get(row,'transportadora')||'—',
+      status:st==='On Time'?'Aderente':st||'Sem Bip',
+      atraso_min:parseFloat(get(row,'atraso_min'))||null,
+      causa_tempo:get(row,'causa_tempo')||'—',
+      causa_processo:get(row,'causa_processo')||'—',
+    };
+  }).filter(r=>r.data!=='—');
+
+  const dates=rawData.map(r=>r.data).filter(d=>d!=='—').sort((a,b)=>parseDateBR(a)-parseDateBR(b));
+  const d0=dates[0],dN=dates[dates.length-1];
+  const week=getISOWeek(parseDateBR(d0));
+  document.getElementById('hdr-week').textContent='W'+week;
+  document.getElementById('hdr-periodo').textContent=`Período: ${d0.slice(0,5)} a ${dN.slice(0,5)}`;
+
+  document.getElementById('uploadSection').style.display='none';
+  document.getElementById('reportWrap').style.display='block';
+  renderAll();
+}
+
+function clearData(){
+  rawData=[];if(pieInst){pieInst.destroy();pieInst=null;}
+  document.getElementById('uploadSection').style.display='block';
+  document.getElementById('reportWrap').style.display='none';
+  document.getElementById('fileInput').value='';
+}
+
+function renderAll(){
+  const total=rawData.length;
+  const ader=rawData.filter(r=>r.status==='Aderente').length;
+  const delay=rawData.filter(r=>r.status==='Delay').length;
+  const pct=total?+(ader/total*100).toFixed(2):0;
+  const gap=+(pct-85).toFixed(2);
+
+  // Header
+  const hRes=document.getElementById('hdr-resultado');
+  hRes.textContent=pct.toFixed(2).replace('.',',')+'%';
+  hRes.className='rkv '+(pct>=85?'ok':'bad');
+  const hGap=document.getElementById('hdr-gap');
+  hGap.textContent=(gap>=0?'+':'')+gap.toFixed(2).replace('.',',')+'p.p.';
+  hGap.className='rkv '+(gap>=0?'gap-ok':'gap-bad');
+
+  // Resultado geral
+  const rgEl=document.getElementById('rg-pct');
+  rgEl.innerHTML=`${pct.toFixed(2).replace('.',',')}% <span class="arrow">${pct>=85?'↑':'↓'}</span>`;
+  rgEl.className='rg-pct '+(pct>=85?'ok':'bad');
+  const gapEl=document.getElementById('rg-gap');
+  gapEl.textContent=`GAP PARA A META: ${gap>=0?'+':''}${gap.toFixed(2).replace('.',',')} p.p.`;
+  gapEl.className='rg-gap-badge'+(gap>=0?' ok':'');
+  document.getElementById('tot-total').textContent=total.toLocaleString('pt-BR');
+  document.getElementById('tot-nad').textContent=delay.toLocaleString('pt-BR');
+
+  // Ciclos
+  const cycles=[...new Set(rawData.map(r=>r.cycle))].filter(c=>c&&c!=='—');
+  document.getElementById('ciclos-grid').innerHTML=cycles.map(c=>{
+    const grp=rawData.filter(r=>r.cycle===c);
+    const p=grp.length?+(grp.filter(r=>r.status==='Aderente').length/grp.length*100).toFixed(0):0;
+    const nad=grp.filter(r=>r.status!=='Aderente').length;
+    const aderN=grp.filter(r=>r.status==='Aderente').length;
+    return`<div class="ciclo-box">
+      <div class="cn">${c}</div>
+      <div class="cp ${pctClass(p)}">${p}%</div>
+      <div class="cbar"><div class="cbar-fill" style="width:${p}%;background:${pctColor(p)}"></div></div>
+      <div class="csub">${grp.length} rotas · <span style="color:var(--green)">${aderN} ✓</span></div>
+      <div class="cnad bad">${nad} não aderentes</div>
+    </div>`;
+  }).join('');
+
+  // Causa Tempo
+  renderCausaBars('causa_tempo','causa-tempo-bars',BAR_COLORS,'nota-tempo',
+    (top,pct)=>`Chegada do driver, BIP do driver e Sem BIP representam <b>${pct}%</b> das causas de tempo.`);
+
+  // Causa Processo
+  renderCausaBars('causa_processo','causa-proc-bars',PROC_COLORS,'nota-proc',
+    (top,pct)=>`As 4 principais causas representam <b>${pct}%</b> dos desvios de processo.`);
+
+  // OOT por Modal
+  const byModal={};
+  rawData.forEach(r=>{
+    const m=r.modal||'—';
+    if(m==='—')return;
+    if(!byModal[m])byModal[m]={total:0,ader:0};
+    byModal[m].total++;if(r.status==='Aderente')byModal[m].ader++;
+  });
+  const modalSorted=Object.entries(byModal).sort((a,b)=>b[1].ader/b[1].total-a[1].ader/a[1].total);
+  const modalColors={'UTILITÁRIO':'#facc15','VAN':'#f97316','LARGE VAN':'#ef4444','VUC':'#a855f7','PASSEIO':'#22c55e','OTHERS':'#3b82f6'};
+  document.getElementById('modal-bars').innerHTML=modalSorted.map(([name,v])=>{
+    const p=v.total?+(v.ader/v.total*100).toFixed(0):0;
+    const col=modalColors[name]||'#6b7280';
+    return`<div class="modal-row">
+      <div class="modal-label">${name}</div>
+      <div class="modal-track"><div class="modal-fill" style="width:${p}%;background:${col}"></div></div>
+      <div class="modal-pct" style="color:${col}">${p}%</div>
+    </div>`;
+  }).join('');
+  const worstModals=modalSorted.filter(([,v])=>v.total?v.ader/v.total*100<75:[]).map(([n])=>n);
+  document.getElementById('nota-modal').innerHTML=`⚠️ ${worstModals.length?worstModals.join(', ')+' com menor performance.':'Todos os modais dentro do esperado.'}`;
+
+  // MLP Pie
+  const transCounts={};
+  rawData.filter(r=>r.status==='Delay'&&(r.causa_tempo||'').toLowerCase().includes('driver'))
+    .forEach(r=>{transCounts[r.transportadora]=(transCounts[r.transportadora]||0)+1;});
+  const sorted=Object.entries(transCounts).sort((a,b)=>b[1]-a[1]);
+  const top8=sorted.slice(0,8),rest=sorted.slice(8);
+  const labels=top8.map(([t])=>t);const values=top8.map(([,v])=>v);
+  if(rest.length){labels.push('Outros');values.push(rest.reduce((s,[,v])=>s+v,0));}
+  const pieTotal=values.reduce((s,v)=>s+v,0);
+  const richLabels=labels.map((l,i)=>{const p=pieTotal?Math.round(values[i]/pieTotal*100):0;return`${l}  ${p}%`;});
+  if(pieInst)pieInst.destroy();
+  // Rich labels with % + count
+  const richLabels2=labels.map((l,i)=>{const p=pieTotal?Math.round(values[i]/pieTotal*100):0;return`${l}  ${p}% (${values[i]})`;});
+  pieInst=new Chart(document.getElementById('pieChart'),{
+    type:'doughnut',
+    data:{labels:richLabels2,datasets:[{data:values,backgroundColor:CORES,borderWidth:2,borderColor:'#181c27'}]},
+    options:{plugins:{legend:{position:'bottom',labels:{color:'#e2e8f0',font:{size:11},boxWidth:13,padding:7}},
+      tooltip:{callbacks:{label:ctx=>{const p=pieTotal?((ctx.parsed/pieTotal)*100).toFixed(1):0;return`${p}% — ${ctx.parsed} rotas`;}}}},cutout:'50%'}
+  });
+
+  // Footer pontos de atenção
+  const ctCounts={};
+  rawData.forEach(r=>{const v=r.causa_tempo||'';if(v&&v!=='—'&&!v.toLowerCase().includes('on time'))ctCounts[v]=(ctCounts[v]||0)+1;});
+  const ctTot=Object.values(ctCounts).reduce((s,v)=>s+v,0);
+  const topCT=Object.entries(ctCounts).sort((a,b)=>b[1]-a[1])[0];
+  const topCTpct=topCT&&ctTot?((topCT[1]/ctTot)*100).toFixed(1):0;
+  const topTransNames=sorted.slice(0,4).map(([n])=>n).join(', ');
+  const semBipN=rawData.filter(r=>r.status==='Sem Bip').length;
+  document.getElementById('fp-1').innerHTML=`Atraso na chegada dos drivers é o maior impacto (<b>${topCTpct}%</b> das causas de tempo).`;
+  document.getElementById('fp-2').innerHTML=`Sorting e priorização (FIFO) impactam diretamente o início das ondas.`;
+  document.getElementById('fp-3').innerHTML=`BIP e check-in SVC ainda geram desvios em todas as waves e ciclos. <b>${semBipN} rotas sem BIP</b> na semana.`;
+  document.getElementById('fp-4').innerHTML=`Foco nas transportadoras: <b>${topTransNames||'—'}</b>.`;
+}
+
+function renderCausaBars(field,containerId,colors,noteId,noteFn){
+  const counts={},byCycle={};
+  const cycleList=[...new Set(rawData.map(r=>r.cycle))].filter(c=>c&&c!=='—').sort();
+  rawData.forEach(r=>{
+    const v=r[field]||'';
+    if(v&&v!=='—'&&!v.toLowerCase().includes('on time')){
+      counts[v]=(counts[v]||0)+1;
+      if(!byCycle[v])byCycle[v]={};
+      byCycle[v][r.cycle]=(byCycle[v][r.cycle]||0)+1;
+    }
+  });
+  const tot=Object.values(counts).reduce((s,v)=>s+v,0);
+  const entries=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,7);
+  document.getElementById(containerId).innerHTML=entries.map(([label,count],i)=>{
+    const p=tot?+(count/tot*100).toFixed(1):0;
+    const cb=cycleList.map(cy=>`<span style="color:var(--muted);font-size:10px">${cy}:<b style="color:var(--subtext)">${byCycle[label]?.[cy]||0}</b></span>`).join(' ');
+    return`<div style="margin-bottom:8px">
+      <div class="bar-row" style="margin-bottom:2px">
+        <div class="br-label" title="${label}">${label}</div>
+        <div class="br-track"><div class="br-fill" style="width:${p}%;background:${colors[i%colors.length]}"></div></div>
+        <div class="br-info" style="color:${colors[i%colors.length]}">${p}% <span style="color:var(--muted);font-size:10px">(${count})</span></div>
+      </div>
+      <div style="padding-left:2px;display:flex;gap:8px">${cb}</div>
+    </div>`;
+  }).join('');
+  // note
+  const top4sum=entries.slice(0,4).reduce((s,[,v])=>s+v,0);
+  const top4pct=tot?+(top4sum/tot*100).toFixed(1):0;
+  const topLabel=entries[0]?entries[0][0]:'—';
+  document.getElementById(noteId).innerHTML=`ℹ️ ${noteFn(topLabel,top4pct)}`;
+}
+
+// ── WEEK EDIT ────────────────────────────────────────────────────────────────
+function editWeek(){
+  const box=document.getElementById('week-edit');
+  const isOpen=box.style.display!=='none';
+  box.style.display=isOpen?'none':'block';
+  if(!isOpen){document.getElementById('week-input').value=document.getElementById('hdr-week').textContent;document.getElementById('week-input').focus();}
+}
+function applyWeek(){
+  const val=document.getElementById('week-input').value.trim();
+  if(val){document.getElementById('hdr-week').textContent=val;}
+  document.getElementById('week-edit').style.display='none';
+}
+
+// ── EDIT RESULTADO GERAL ──────────────────────────────────────────────────────
+let manualRG=null;
+function toggleEditRG(){
+  const box=document.getElementById('rg-edit-box');
+  const view=document.getElementById('rg-view');
+  const btn=document.getElementById('btn-rg');
+  const isOpen=box.style.display!=='none';
+  box.style.display=isOpen?'none':'block';
+  view.style.display=isOpen?'block':'none';
+  btn.textContent=isOpen?'✏️ Editar':'✕ Fechar';
+  btn.classList.toggle('active',!isOpen);
+  if(!isOpen&&manualRG){
+    document.getElementById('ei-pct').value=manualRG.pct;
+    document.getElementById('ei-total').value=manualRG.total;
+    document.getElementById('ei-nad').value=manualRG.nad;
+  }
+}
+function applyEditRG(){
+  const pct=parseFloat(document.getElementById('ei-pct').value);
+  const total=parseInt(document.getElementById('ei-total').value);
+  const nad=parseInt(document.getElementById('ei-nad').value);
+  if(isNaN(pct)||isNaN(total)||isNaN(nad)){alert('Preencha todos os campos.');return;}
+  manualRG={pct,total,nad};
+  const gap=+(pct-85).toFixed(2);
+  const rgEl=document.getElementById('rg-pct');
+  rgEl.innerHTML=`${pct.toFixed(2).replace('.',',')}% <span class="arrow">${pct>=85?'↑':'↓'}</span>`;
+  rgEl.className='rg-pct '+(pct>=85?'ok':'bad');
+  const gapEl=document.getElementById('rg-gap');
+  gapEl.textContent=`GAP PARA A META: ${gap>=0?'+':''}${gap.toFixed(2).replace('.',',')} p.p.`;
+  gapEl.className='rg-gap-badge'+(gap>=0?' ok':'');
+  document.getElementById('tot-total').textContent=total.toLocaleString('pt-BR');
+  document.getElementById('tot-nad').textContent=nad.toLocaleString('pt-BR');
+  const hRes=document.getElementById('hdr-resultado');
+  hRes.textContent=pct.toFixed(2).replace('.',',')+'%';
+  hRes.className='rkv '+(pct>=85?'ok':'bad');
+  const hGap=document.getElementById('hdr-gap');
+  hGap.textContent=(gap>=0?'+':'')+gap.toFixed(2).replace('.',',')+'p.p.';
+  hGap.className='rkv '+(gap>=0?'gap-ok':'gap-bad');
+  toggleEditRG();
+}
+
+// ── EDIT CICLO ────────────────────────────────────────────────────────────────
+let manualCiclos=null;
+let cicloEditData=[];
+function toggleEditCiclo(){
+  const box=document.getElementById('ciclo-edit-box');
+  const view=document.getElementById('ciclo-view');
+  const btn=document.getElementById('btn-ciclo');
+  const isOpen=box.style.display!=='none';
+  box.style.display=isOpen?'none':'block';
+  view.style.display=isOpen?'block':'none';
+  btn.textContent=isOpen?'✏️ Editar':'✕ Fechar';
+  btn.classList.toggle('active',!isOpen);
+  if(!isOpen) buildCicloRows();
+}
+function buildCicloRows(){
+  const source=manualCiclos||(()=>{
+    const cycs=[...new Set(rawData.map(r=>r.cycle))].filter(c=>c&&c!=='—');
+    return cycs.map(c=>{
+      const grp=rawData.filter(r=>r.cycle===c);
+      return{name:c,total:grp.length,ader:grp.filter(r=>r.status==='Aderente').length};
+    });
+  })();
+  cicloEditData=source.map(c=>({...c}));
+  renderCicloEditRows();
+}
+function renderCicloEditRows(){
+  document.getElementById('ciclo-edit-rows').innerHTML=
+    `<div class="ciclo-edit-row" style="margin-bottom:4px">
+      <div class="cer-col">Ciclo</div><div class="cer-col">Total</div>
+      <div class="cer-col">Aderentes</div><div class="cer-col">% OOT</div><div></div>
+    </div>`+
+    cicloEditData.map((c,i)=>`
+    <div class="ciclo-edit-row">
+      <input value="${c.name}" onchange="cicloEditData[${i}].name=this.value"/>
+      <input type="number" value="${c.total}" onchange="cicloEditData[${i}].total=+this.value;updPct(${i})" min="0"/>
+      <input type="number" value="${c.ader}" onchange="cicloEditData[${i}].ader=+this.value;updPct(${i})" min="0"/>
+      <input type="number" id="pct-c-${i}" value="${c.total?+(c.ader/c.total*100).toFixed(0):0}" readonly style="color:var(--muted)"/>
+      <button class="del-row" onclick="cicloEditData.splice(${i},1);renderCicloEditRows()">✕</button>
+    </div>`).join('');
+}
+function updPct(i){
+  const el=document.getElementById('pct-c-'+i);
+  if(el)el.value=cicloEditData[i].total?+(cicloEditData[i].ader/cicloEditData[i].total*100).toFixed(0):0;
+}
+function addCicloRow(){cicloEditData.push({name:'',total:0,ader:0});renderCicloEditRows();}
+function applyEditCiclo(){
+  manualCiclos=cicloEditData.map(c=>({...c}));
+  document.getElementById('ciclos-grid').innerHTML=manualCiclos.map(c=>{
+    const p=c.total?+(c.ader/c.total*100).toFixed(0):0;
+    const nad=c.total-c.ader;
+    function pC(p){return p>=85?'var(--green)':p>=70?'var(--yellow)':'var(--red)';}
+    function pCls(p){return p>=85?'ok':p>=70?'warn':'bad';}
+    return`<div class="ciclo-box">
+      <div class="cn">${c.name}</div>
+      <div class="cp ${pCls(p)}">${p}%</div>
+      <div class="cbar"><div class="cbar-fill" style="width:${p}%;background:${pC(p)}"></div></div>
+      <div class="csub">${c.total} rotas · <span style="color:var(--green)">${c.ader} ✓</span></div>
+      <div class="cnad bad">${nad} não aderentes</div>
+    </div>`;
+  }).join('');
+  toggleEditCiclo();
+}
+
+function tick(){document.getElementById('clock').textContent=new Date().toLocaleDateString('pt-BR')+'  '+new Date().toLocaleTimeString('pt-BR');}
+tick();setInterval(tick,1000);
+</script>
+</body>
+</html>
